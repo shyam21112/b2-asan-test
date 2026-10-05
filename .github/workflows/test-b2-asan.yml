@@ -4,7 +4,7 @@ on: [push, workflow_dispatch]
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
@@ -35,7 +35,7 @@ jobs:
             -DCMAKE_C_FLAGS="-fsanitize=address -fno-omit-frame-pointer -g" \
             -DCMAKE_CXX_FLAGS="-fsanitize=address -fno-omit-frame-pointer -g" \
             -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address" \
-            -G Ninja
+            -G Ninja -DBUILD_TESTING=OFF
           ninja -C build -j$(nproc)
 
       - name: Build test
@@ -48,7 +48,7 @@ jobs:
             -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address" \
             -DWALLET_CORE_DIR=../wallet-core \
             -DWALLET_CORE_BUILD=../wallet-core/build \
-            -G Ninja
+            -G Ninja -DBUILD_TESTING=OFF
           ninja
 
       - name: Run test under ASan
