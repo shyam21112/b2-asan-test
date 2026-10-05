@@ -42,8 +42,8 @@ static void run_case(const char *label, const uint8_t *input, size_t inputLen,
     TWData *in = TWDataCreateWithBytes(input, inputLen);
     TWData *s = TWDataCreateWithBytes(sig, sigLen);
     TWData *p = TWDataCreateWithBytes(pub, pubLen);
-    TWDataVector *sigs = TWDataVectorCreateWithData(s);
-    TWDataVector *pubs = TWDataVectorCreateWithData(p);
+    struct TWDataVector *sigs = TWDataVectorCreateWithData(s);
+    struct TWDataVector *pubs = TWDataVectorCreateWithData(p);
     printf("=== %s (signature length: %zu) ===\n", label, sigLen);
     TWData *out = TWTransactionCompilerCompileWithSignatures(TWCoinTypeHarmony, in, sigs, pubs);
     if (out == NULL) { printf("  returned NULL\n"); }
