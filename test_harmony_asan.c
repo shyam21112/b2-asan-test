@@ -53,6 +53,7 @@ static void run_case(const char *label, const uint8_t *input, size_t inputLen,
 }
 
 int main(void) {
+    setbuf(stdout, NULL);
     uint8_t input[512], pub[128], sig65[128], sig1[1] = {0x41}, sig33[64];
     size_t inputLen = parse_hex(INPUT_HEX, input, sizeof(input));
     size_t pubLen = parse_hex(PUB_HEX, pub, sizeof(pub));
