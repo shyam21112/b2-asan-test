@@ -21,11 +21,18 @@ if(NOT WALLET_CORE_LIB)
 endif()
 message(STATUS "Found wallet-core: ${WALLET_CORE_LIB}")
 
-find_library(PROTOBUF_LIB NAMES protobuf PATHS ${WALLET_CORE_BUILD}/local/lib NO_DEFAULT_PATH)
+file(GLOB ALL_ARCHIVES
+    "${WALLET_CORE_BUILD}/*.a"
+    "${WALLET_CORE_BUILD}/local/lib/*.a"
+    "${WALLET_CORE_BUILD}/trezor-crypto/*.a"
+)
+message(STATUS "Linking archives: ${ALL_ARCHIVES}")
 
 add_executable(test_harmony_asan test_harmony_asan.c)
 target_link_libraries(test_harmony_asan
+    -Wl,--start-group
     ${WALLET_CORE_LIB}
-    ${PROTOBUF_LIB}
+    ${ALL_ARCHIVES}
+    -Wl,--end-group
     ssl crypto stdc++ pthread dl
 )
