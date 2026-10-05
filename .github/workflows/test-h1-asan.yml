@@ -1,0 +1,80 @@
+name: H1 Harmony ASan Test
+on: [push, workflow_dispatch]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang cmake ninja-build libboost-all-dev \
+            libprotobuf-dev protobuf-compiler rustc cargo
+
+      - name: Clone wallet-core at pinned commit
+        run: |
+          git clone https://github.com/trustwallet/wallet-core.git
+          cd wallet-core
+          git checkout d40d24a63d92619167903369308bf0e2f7eb3a59
+          echo "COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
+
+      - name: Bootstrap wallet-core
+        run: |
+          cd wallet-core
+          ./bootstrap.sh
+
+      - name: Build wallet-core library with ASan (library target only)
+        run: |
+          cd wallet-core
+          cmake -H. -Bbuild \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_C_FLAGS="-fsanitize=address -fno-omit-frame-pointer -g" \
+            -DCMAKE_CXX_FLAGS="-fsanitize=address -fno-omit-frame-pointer -g" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address" \
+            -DBUILD_TESTING=OFF \
+            -G Ninja
+          ninja -C build TrustWalletCore
+
+      - name: Build test
+        run: |
+          mkdir -p test_build && cd test_build
+          cmake .. \
+            -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_C_FLAGS="-fsanitize=address -fno-omit-frame-pointer -g" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=address" \
+            -DWALLET_CORE_DIR=../wallet-core \
+            -DWALLET_CORE_BUILD=../wallet-core/build \
+            -G Ninja
+          ninja
+
+      - name: Run test under ASan
+        run: |
+          cd test_build
+          ASAN_OPTIONS=detect_leaks=0:halt_on_error=0 \
+            ./test_harmony_asan 2>&1 | tee asan_output.txt || true
+          echo "exit=$?" >> asan_output.txt
+
+      - name: Check for ASan errors
+        run: |
+          if grep -q "ERROR: AddressSanitizer" test_build/asan_output.txt; then
+            echo "## ASAN ERROR CONFIRMED" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            grep -B2 -A 25 "ERROR: AddressSanitizer" test_build/asan_output.txt | head -60 >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "Wallet-core commit: ${{ env.COMMIT }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## No ASan error detected" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: asan-results
+          path: |
+            test_build/asan_output.txt
